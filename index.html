@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DocChat AI</title>
+<style>
+  /* ── Reset & Variables ──────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #0d1117;
+    --bg2:        #161b22;
+    --bg3:        #1f2937;
+    --border:     #30363d;
+    --accent:     #7c3aed;
+    --accent2:    #2563eb;
+    --green:      #22c55e;
+    --red:        #ef4444;
+    --yellow:     #f59e0b;
+    --text:       #e6edf3;
+    --text2:      #8b949e;
+    --user-bg:    #1e3a5f;
+    --bot-bg:     #1e1b2e;
+    --radius:     10px;
+    --shadow:     0 4px 20px rgba(0,0,0,0.4);
+    --font:       'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .header {
+    background: linear-gradient(135deg, #1a0533 0%, #0d1117 60%, #0a1628 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    box-shadow: var(--shadow);
+  }
+  .header-left { display: flex; align-items: center; gap: 0.75rem; }
+  .header-logo { font-size: 1.6rem; }
+  .header-title { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+  .header-subtitle { font-size: 0.75rem; color: var(--text2); }
+  .header-status {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 0.35rem 0.9rem; font-size: 0.8rem;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--red); transition: background 0.3s;
+  }
+  .status-dot.ready { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* ── Main Layout ─────────────────────────────────────────── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* ── Left Panel ──────────────────────────────────────────── */
+  .left-panel {
+    width: 38%;
+    min-width: 300px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Right Panel ─────────────────────────────────────────── */
+  .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* ── Panel Section ───────────────────────────────────────── */
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 0.85rem 1rem;
+  }
+  .panel-section:last-child { border-bottom: none; }
+
+  .section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* ── Upload Area ─────────────────────────────────────────── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: var(--bg3);
+  }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(124,58,237,0.05); }
+  .upload-zone.drag-over { border-color: var(--accent); background: rgba(124,58,237,0.1); }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 1.5rem; margin-bottom: 0.3rem; }
+  .upload-text { font-size: 0.8rem; color: var(--text2); }
+  .upload-text strong { color: var(--accent); }
+  .upload-types { font-size: 0.7rem; color: var(--text2); margin-top: 0.2rem; }
+
+  .selected-files {
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text2);
+    max-height: 60px;
+    overflow-y: auto;
+  }
+  .selected-files div { padding: 0.15rem 0; }
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+  .btn {
+    border: none; border-radius: 8px; cursor: pointer;
+    font-family: var(--font); font-size: 0.82rem; font-weight: 600;
+    padding: 0.5rem 1rem; transition: all 0.2s; display: inline-flex;
+    align-items: center; gap: 0.4rem; justify-content: center;
+    white-space: nowrap;
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #6d28d9; }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover:not(:disabled) { background: var(--border); }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.25); }
+  .btn-success { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .btn-success:hover:not(:disabled) { background: rgba(34,197,94,0.25); }
+  .btn-full { width: 100%; margin-top: 0.5rem; }
+  .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.75rem; }
+
+  /* ── File Manager ────────────────────────────────────────── */
+  .file-list-wrap {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 80px;
+    max-height: 180px;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.82rem;
+  }
+  .file-item:hover { background: var(--bg3); }
+  .file-item.active { background: rgba(124,58,237,0.15); border-left: 3px solid var(--accent); }
+  .file-icon { font-size: 1rem; flex-shrink: 0; }
+  .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-size { color: var(--text2); font-size: 0.72rem; flex-shrink: 0; }
+  .file-del { flex-shrink: 0; background: none; border: none; cursor: pointer;
+    color: var(--text2); font-size: 0.85rem; padding: 0.2rem; border-radius: 4px;
+    transition: color 0.2s; }
+  .file-del:hover { color: var(--red); }
+
+  .empty-state {
+    text-align: center; color: var(--text2);
+    padding: 1.2rem 0.5rem; font-size: 0.82rem;
+  }
+  .empty-state .emoji { font-size: 1.5rem; display: block; margin-bottom: 0.4rem; }
+
+  /* ── Document Viewer ─────────────────────────────────────── */
+  .viewer-wrap {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .viewer-content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 120px;
+    max-height: 240px;
+  }
+  .viewer-iframe {
+    width: 100%;
+    height: 220px;
+    border: none;
+    border-radius: 8px;
+    background: #fff;
+  }
+  .viewer-placeholder {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 120px; color: var(--text2); font-size: 0.82rem;
+    background: var(--bg3); border-radius: 8px; text-align: center;
+    padding: 1rem;
+  }
+
+  /* ── Settings Bar ────────────────────────────────────────── */
+  .settings-bar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    flex-shrink: 0;
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .settings-group { display: flex; flex-direction: column; gap: 0.3rem; }
+  .settings-label { font-size: 0.72rem; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  select, input[type=text] {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); font-family: var(--font);
+    font-size: 0.82rem; padding: 0.4rem 0.65rem; outline: none;
+    transition: border-color 0.2s;
+  }
+  select:focus, input[type=text]:focus { border-color: var(--accent); }
+  select { cursor: pointer; }
+
+  .instruction-input { flex: 1; min-width: 160px; }
+  .settings-actions { display: flex; gap: 0.4rem; align-items: flex-end; margin-left: auto; }
+
+  /* ── Chat Controls ───────────────────────────────────────── */
+  .chat-controls {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    align-items: center;
+  }
+  .chat-stat { margin-left: auto; font-size: 0.78rem; color: var(--text2); }
+  .chat-stat span { color: var(--text); font-weight: 600; }
+
+  /* ── Chat History ────────────────────────────────────────── */
+  .chat-history {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .welcome {
+    margin: auto;
+    text-align: center;
+    color: var(--text2);
+    max-width: 340px;
+  }
+  .welcome .w-icon { font-size: 3rem; margin-bottom: 0.75rem; }
+  .welcome h2 { color: var(--text); font-size: 1.2rem; margin-bottom: 0.5rem; }
+  .welcome p { font-size: 0.85rem; line-height: 1.6; }
+
+  .msg-row { display: flex; flex-direction: column; }
+  .msg-row.user { align-items: flex-end; }
+  .msg-row.assistant { align-items: flex-start; }
+
+  .msg-bubble {
+    max-width: 85%;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    position: relative;
+  }
+  .msg-row.user .msg-bubble {
+    background: var(--user-bg);
+    border: 1px solid rgba(37,99,235,0.3);
+    border-bottom-right-radius: 4px;
+  }
+  .msg-row.assistant .msg-bubble {
+    background: var(--bot-bg);
+    border: 1px solid rgba(124,58,237,0.25);
+    border-bottom-left-radius: 4px;
+  }
+  .msg-label {
+    font-size: 0.7rem; color: var(--text2);
+    margin-bottom: 0.2rem; padding: 0 0.2rem;
+  }
+
+  .msg-sources {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  .sources-title { font-size: 0.72rem; color: var(--text2); margin-bottom: 0.3rem; }
+  .source-tag {
+    display: inline-block; background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.3); border-radius: 20px;
+    padding: 0.1rem 0.5rem; font-size: 0.7rem; color: var(--accent);
+    margin: 0.15rem 0.15rem 0 0;
+  }
+
+  .typing-indicator {
+    display: flex; align-items: center; gap: 0.3rem;
+    background: var(--bot-bg); border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 12px; border-bottom-left-radius: 4px;
+    padding: 0.75rem 1rem; max-width: 100px;
+  }
+  .typing-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); animation: bounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+    30% { transform: translateY(-5px); opacity: 1; }
+  }
+
+  /* ── Chat Input ──────────────────────────────────────────── */
+  .chat-input-bar {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+  .chat-textarea {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.88rem;
+    padding: 0.65rem 0.9rem;
+    resize: none;
+    outline: none;
+    min-height: 44px;
+    max-height: 120px;
+    line-height: 1.5;
+    transition: border-color 0.2s;
+  }
+  .chat-textarea:focus { border-color: var(--accent); }
+  .chat-textarea::placeholder { color: var(--text2); }
+  .send-btn {
+    background: var(--accent); border: none; border-radius: 10px;
+    color: #fff; cursor: pointer; padding: 0.65rem 1rem;
+    font-size: 1.1rem; transition: all 0.2s; flex-shrink: 0;
+    height: 44px; display: flex; align-items: center;
+  }
+  .send-btn:hover:not(:disabled) { background: #6d28d9; transform: scale(1.05); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* ── Progress Bar ────────────────────────────────────────── */
+  .progress-bar {
+    height: 3px; background: var(--border); border-radius: 2px;
+    margin-top: 0.5rem; overflow: hidden; display: none;
+  }
+  .progress-bar.active { display: block; }
+  .progress-fill {
+    height: 100%; background: var(--accent);
+    border-radius: 2px; transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  /* ── Toast ───────────────────────────────────────────────── */
+  .toast-container {
+    position: fixed; bottom: 1.5rem; right: 1.5rem;
+    display: flex; flex-direction: column; gap: 0.5rem; z-index: 9999;
+  }
+  .toast {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.7rem 1rem;
+    font-size: 0.82rem; max-width: 320px;
+    box-shadow: var(--shadow); animation: slideIn 0.3s ease;
+  }
+  .toast.success { border-left: 4px solid var(--green); }
+  .toast.error   { border-left: 4px solid var(--red); }
+  .toast.info    { border-left: 4px solid var(--accent2); }
+  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ── Scrollbar ───────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+
+  /* ── Loading spinner ─────────────────────────────────────── */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ──────────────────────────────────────────── */
+  @media (max-width: 700px) {
+    .main { flex-direction: column; }
+    .left-panel { width: 100%; min-width: unset; max-height: 40vh; }
+    .settings-bar { flex-direction: column; align-items: stretch; }
+    .settings-actions { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <span class="header-logo">🤖</span>
+    <div>
+      <div class="header-title">DocChat AI</div>
+      <div class="header-subtitle">RAG · Groq LLaMA · FAISS · Sentence Transformers</div>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Not ready</span>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+
+    <!-- Upload Section -->
+    <div class="panel-section">
+      <div class="section-title">⬆️ Upload Documents</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" multiple
+          accept=".pdf,.docx,.txt,.md,.csv" />
+        <div class="upload-icon">📂</div>
+        <div class="upload-text">
+          <strong>Click to browse</strong> or drag & drop
+        </div>
+        <div class="upload-types">PDF · DOCX · TXT · MD · CSV (max 50 MB each)</div>
+      </div>
+      <div class="selected-files" id="selectedFiles"></div>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <button class="btn btn-primary btn-full" id="uploadBtn" disabled>
+        📥 Process & Index Documents
+      </button>
+    </div>
+
+    <!-- File Manager -->
+    <div class="panel-section" style="flex-shrink:0">
+      <div class="section-title">📋 Indexed Documents</div>
+      <div class="file-list-wrap" id="fileList">
+        <div class="empty-state">
+          <span class="emoji">📭</span>
+          No documents yet. Upload files above.
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Viewer -->
+    <div class="panel-section viewer-wrap">
+      <div class="section-title">👁️ Document Viewer</div>
+      <div id="viewerArea">
+        <div class="viewer-placeholder">
+          👆 Click a document above to preview it here
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left-panel -->
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <!-- Settings Bar -->
+    <div class="settings-bar">
+      <div class="settings-group">
+        <span class="settings-label">🎭 Role</span>
+        <select id="roleSelect">
+          <option value="Assistant">Assistant</option>
+          <option value="Teacher">Teacher</option>
+          <option value="Expert">Expert</option>
+          <option value="Analyst">Analyst</option>
+          <option value="Summarizer">Summarizer</option>
+        </select>
+      </div>
+      <div class="settings-group" style="flex:1">
+        <span class="settings-label">📝 Custom Instruction (optional)</span>
+        <input type="text" id="instructionInput" class="instruction-input"
+          placeholder='e.g. "Answer in 3 bullet points" or "Be concise"' />
+      </div>
+      <div class="settings-actions">
+        <button class="btn btn-secondary btn-sm" id="applyBtn">✅ Apply</button>
+      </div>
+    </div>
+
+    <!-- Chat Controls -->
+    <div class="chat-controls">
+      <button class="btn btn-secondary btn-sm" id="newChatBtn">🆕 New Chat</button>
+      <button class="btn btn-danger btn-sm" id="resetBtn">🔄 Reset All</button>
+      <div class="chat-stat">Documents: <span id="docCount">0</span></div>
+    </div>
+
+    <!-- Chat History -->
+    <div class="chat-history" id="chatHistory">
+      <div class="welcome">
+        <div class="w-icon">👋</div>
+        <h2>Welcome to DocChat AI</h2>
+        <p>Upload documents on the left, then ask me anything about them.<br><br>
+        Answers are grounded <strong>strictly</strong> in your documents — no hallucination.</p>
+      </div>
+    </div>
+
+    <!-- Chat Input -->
+    <div class="chat-input-bar">
+      <textarea class="chat-textarea" id="chatInput" rows="1"
+        placeholder="Ask a question about your documents…"></textarea>
+      <button class="send-btn" id="sendBtn" disabled title="Send">➤</button>
+    </div>
+
+  </div><!-- /right-panel -->
+</div><!-- /main -->
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+'use strict';
+
+const API = 'http://localhost:8000/api';
+const state = {
+  files: [],         // selected files from input
+  documents: [],     // indexed documents from server
+  messages: [],      // chat history [{role, content, sources}]
+  selectedDoc: null, // currently previewed doc name
+  loading: false,
+  typing: false,
+};
+
+/* ── Toast ────────────────────────────────────────────────── */
+function toast(msg, type = 'info', duration = 3500) {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  const container = document.getElementById('toastContainer');
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s';
+    setTimeout(() => el.remove(), 400); }, duration);
+}
+
+/* ── Status ───────────────────────────────────────────────── */
+async function refreshStatus() {
+  try {
+    const res = await fetch(`${API}/health`);
+    const d = await res.json();
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    const docCount = document.getElementById('docCount');
+    if (d.pipeline_ready) {
+      dot.classList.add('ready');
+      txt.textContent = `Ready · ${d.doc_count} doc${d.doc_count !== 1 ? 's' : ''}`;
+    } else {
+      dot.classList.remove('ready');
+      txt.textContent = d.doc_count > 0 ? 'Indexed (no pipeline)' : 'No documents';
+    }
+    docCount.textContent = d.doc_count;
+    // Enable send if pipeline ready and input has text
+    updateSendBtn();
+  } catch(e) {
+    document.getElementById('statusText').textContent = 'Server offline';
+    document.getElementById('statusDot').classList.remove('ready');
+  }
+}
+
+/* ── File Manager ─────────────────────────────────────────── */
+async function loadDocuments() {
+  try {
+    const res = await fetch(`${API}/documents`);
+    const d = await res.json();
+    state.documents = d.documents || [];
+    renderFileList();
+    refreshStatus();
+  } catch(e) {
+    console.error('loadDocuments error:', e);
+  }
+}
+
+function renderFileList() {
+  const el = document.getElementById('fileList');
+  if (!state.documents.length) {
+    el.innerHTML = '<div class="empty-state"><span class="emoji">📭</span>No documents yet. Upload files above.</div>';
+    return;
+  }
+  el.innerHTML = state.documents.map(doc => `
+    <div class="file-item ${state.selectedDoc === doc.name ? 'active' : ''}"
+         onclick="previewDoc('${esc(doc.name)}')">
+      <span class="file-icon">${doc.icon}</span>
+      <span class="file-name" title="${esc(doc.name)}">${esc(doc.name)}</span>
+      <span class="file-size">${doc.size_display}</span>
+      <button class="file-del" onclick="deleteDoc(event,'${esc(doc.name)}')" title="Delete">🗑️</button>
+    </div>
+  `).join('');
+}
+
+async function deleteDoc(e, name) {
+  e.stopPropagation();
+  if (!confirm(`Delete "${name}"? The index will be rebuilt.`)) return;
+  try {
+    const res = await fetch(`${API}/documents/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    if (!res.ok) { const d = await res.json(); throw new Error(d.detail); }
+    if (state.selectedDoc === name) { state.selectedDoc = null; renderViewer(); }
+    toast(`Deleted "${name}"`, 'success');
+    await loadDocuments();
+  } catch(e) { toast(`Delete failed: ${e.message}`, 'error'); }
+}
+
+/* ── Upload ───────────────────────────────────────────────── */
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const selectedFilesEl = document.getElementById('selectedFiles');
+const progressBar = document.getElementById('progressBar');
+const progressFill = document.getElementById('progressFill');
+
+fileInput.addEventListener('change', () => {
+  state.files = Array.from(fileInput.files);
+  renderSelectedFiles();
+  uploadBtn.disabled = state.files.length === 0;
+});
+
+// Drag & Drop
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  fileInput.files = e.dataTransfer.files;
+  fileInput.dispatchEvent(new Event('change'));
+});
+
+function renderSelectedFiles() {
+  if (!state.files.length) { selectedFilesEl.innerHTML = ''; return; }
+  selectedFilesEl.innerHTML = state.files.map(f =>
+    `<div>📎 ${esc(f.name)} (${(f.size/1024).toFixed(1)} KB)</div>`
+  ).join('');
+}
+
+uploadBtn.addEventListener('click', async () => {
+  if (!state.files.length) return;
+  uploadBtn.disabled = true;
+  uploadBtn.innerHTML = '<span class="spinner"></span> Processing…';
+  progressBar.classList.add('active');
+  setProgress(20);
+
+  const fd = new FormData();
+  state.files.forEach(f => fd.append('files', f));
+
+  try {
+    setProgress(50);
+    const res = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+    setProgress(90);
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || 'Upload failed');
+
+    toast(`✅ ${d.message}`, 'success', 4000);
+    if (d.errors && d.errors.length) d.errors.forEach(e => toast(`⚠️ ${e}`, 'info'));
+
+    state.files = [];
+    fileInput.value = '';
+    selectedFilesEl.innerHTML = '';
+    await loadDocuments();
+  } catch(e) {
+    toast(`❌ ${e.message}`, 'error');
+  } finally {
+    setProgress(100);
+    setTimeout(() => { progressBar.classList.remove('active'); setProgress(0); }, 600);
+    uploadBtn.disabled = false;
+    uploadBtn.innerHTML = '📥 Process & Index Documents';
+  }
+});
+
+function setProgress(pct) { progressFill.style.width = pct + '%'; }
+
+/* ── Document Viewer ──────────────────────────────────────── */
+async function previewDoc(name) {
+  state.selectedDoc = name;
+  renderFileList(); // update active state
+  renderViewer('loading');
+
+  const ext = name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') {
+    const viewerArea = document.getElementById('viewerArea');
+    viewerArea.innerHTML = `
+      <iframe class="viewer-iframe"
+        src="/api/document/${encodeURIComponent(name)}"
+        title="${esc(name)}"></iframe>`;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/document/${encodeURIComponent(name)}`);
+    if (!res.ok) throw new Error('Could not load file');
+    const d = await res.json();
+    renderViewer('text', d.content);
+  } catch(e) {
+    renderViewer('error', e.message);
+  }
+}
+
+function renderViewer(mode, content) {
+  const el = document.getElementById('viewerArea');
+  if (!mode || mode === 'empty') {
+    el.innerHTML = '<div class="viewer-placeholder">👆 Click a document above to preview it here</div>';
+  } else if (mode === 'loading') {
+    el.innerHTML = '<div class="viewer-placeholder"><span class="spinner"></span> Loading…</div>';
+  } else if (mode === 'text') {
+    el.innerHTML = `<div class="viewer-content">${esc(content)}</div>`;
+  } else if (mode === 'error') {
+    el.innerHTML = `<div class="viewer-placeholder" style="color:var(--red)">⚠️ ${esc(content)}</div>`;
+  }
+}
+
+/* ── Chat ─────────────────────────────────────────────────── */
+function updateSendBtn() {
+  const hasPipeline = document.getElementById('statusDot').classList.contains('ready');
+  const hasText = document.getElementById('chatInput').value.trim().length > 0;
+  document.getElementById('sendBtn').disabled = !hasText || state.typing;
+}
+
+const chatInput = document.getElementById('chatInput');
+chatInput.addEventListener('input', () => {
+  // Auto-resize textarea
+  chatInput.style.height = 'auto';
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+  updateSendBtn();
+});
+
+chatInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (!document.getElementById('sendBtn').disabled) sendMessage();
+  }
+});
+
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+
+async function sendMessage() {
+  const question = chatInput.value.trim();
+  if (!question || state.typing) return;
+
+  const role = document.getElementById('roleSelect').value;
+  const instruction = document.getElementById('instructionInput').value.trim();
+
+  // Add user message
+  state.messages.push({ role: 'user', content: question, sources: [] });
+  chatInput.value = '';
+  chatInput.style.height = 'auto';
+  renderChat();
+  showTyping(true);
+  updateSendBtn();
+
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, role, instruction }),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || 'Chat error');
+
+    state.messages.push({ role: 'assistant', content: d.answer, sources: d.sources || [] });
+  } catch(e) {
+    state.messages.push({ role: 'assistant', content: `❌ Error: ${e.message}`, sources: [] });
+  } finally {
+    showTyping(false);
+    renderChat();
+    scrollChat();
+    updateSendBtn();
+    await refreshStatus();
+  }
+}
+
+function renderChat() {
+  const el = document.getElementById('chatHistory');
+  if (!state.messages.length) {
+    el.innerHTML = `<div class="welcome">
+      <div class="w-icon">👋</div>
+      <h2>Welcome to DocChat AI</h2>
+      <p>Upload documents on the left, then ask me anything about them.<br><br>
+      Answers are grounded <strong>strictly</strong> in your documents — no hallucination.</p>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = state.messages.map(msg => {
+    const sourcesHTML = msg.sources && msg.sources.length
+      ? `<div class="msg-sources">
+           <div class="sources-title">📚 Sources:</div>
+           ${msg.sources.map(s => `<span class="source-tag">${esc(s)}</span>`).join('')}
+         </div>`
+      : '';
+    return `
+      <div class="msg-row ${msg.role}">
+        <div class="msg-label">${msg.role === 'user' ? '👤 You' : '🤖 DocChat AI'}</div>
+        <div class="msg-bubble">
+          ${esc(msg.content).replace(/\n/g, '<br>')}
+          ${sourcesHTML}
+        </div>
+      </div>`;
+  }).join('');
+
+  // Append typing indicator if active
+  if (state.typing) {
+    el.innerHTML += `
+      <div class="msg-row assistant">
+        <div class="msg-label">🤖 DocChat AI</div>
+        <div class="typing-indicator">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>`;
+  }
+}
+
+function showTyping(show) {
+  state.typing = show;
+  renderChat();
+  scrollChat();
+}
+
+function scrollChat() {
+  const el = document.getElementById('chatHistory');
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ── Controls ─────────────────────────────────────────────── */
+document.getElementById('newChatBtn').addEventListener('click', async () => {
+  state.messages = [];
+  renderChat();
+  try {
+    await fetch(`${API}/new-chat`, { method: 'POST' });
+    toast('Chat memory cleared.', 'info');
+  } catch(e) {}
+});
+
+document.getElementById('resetBtn').addEventListener('click', async () => {
+  if (!confirm('Reset everything? All documents and chat will be deleted.')) return;
+  try {
+    await fetch(`${API}/reset`, { method: 'POST' });
+    state.messages = [];
+    state.documents = [];
+    state.selectedDoc = null;
+    state.files = [];
+    fileInput.value = '';
+    selectedFilesEl.innerHTML = '';
+    renderChat();
+    renderFileList();
+    renderViewer();
+    toast('All data reset.', 'success');
+    await refreshStatus();
+  } catch(e) { toast(`Reset failed: ${e.message}`, 'error'); }
+});
+
+document.getElementById('applyBtn').addEventListener('click', () => {
+  toast(`Settings applied: ${document.getElementById('roleSelect').value}`, 'success');
+});
+
+/* ── Utility ──────────────────────────────────────────────── */
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/* ── Init ─────────────────────────────────────────────────── */
+async function init() {
+  renderViewer();
+  await loadDocuments();
+  await refreshStatus();
+  // Poll status every 5s
+  setInterval(refreshStatus, 5000);
+}
+
+init();
+</script>
+</body>
+</html>

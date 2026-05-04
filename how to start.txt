@@ -1,0 +1,4 @@
+cd C:\Users\zairu\OneDrive\Desktop\rag_chatbot
+C:\rag_chatbot\venv\Scripts\python.exe -m uvicorn backend:app --reload --port 8000
+
+for no 6 emotion detection from voice can you write me a detailed promt that i can give to claude to make this project for me also the api s used in this project should be free open source i dont have money also no mistakes should be there everything should be checkde thoroughly and also tell it to provide me a detailed step by step instructions from creating the project folder to creating venv then installing piplines and running the code and also the sequence in which i ll store the project files 
